@@ -5,9 +5,9 @@ source("setup.R")
 # Recover Data ---------------------------------
 
 pof_transporte_urbano <- 
-  readr::read_rds('pof_transporte_urbano.rds')
+  readr::read_rds('data/pof_transporte_urbano.rds')
 pof_agregado <-
-  readr::read_rds('pof_agregado_familias.rds')
+  readr::read_rds('data/pof_agregado.rds')
 
 ######## 3. Plot data ----------------------------------------------------------
 
@@ -15,18 +15,19 @@ pof_agregado <-
 
 plot0 <-
   pof_agregado %>% 
+  filter(Ano != 2002) %>% 
   group_by(Ano, Grupo) %>% 
   summarise(
     gasto = weighted.mean(gasto,PESO_FINAL, na.rm = T),
-    prop = weighted.mean(prop, PESO_FINAL), na.rm = T)
+    prop = weighted.mean(prop, PESO_FINAL, na.rm = T))
+
+plot0$Grupo <- factor(plot0$Grupo, levels = c('Habitação','Transporte Urbano','Alimentação','Roupas e Calçados','Cultura/Lazer/Esporte'))
 
 plot0 %>% 
-  na.omit() %>% 
-  arrange(desc(prop)) %>% 
   ggplot(aes(Ano,prop)) +
-  geom_col(aes(fill=Grupo),position = position_dodge(width = .75))+
+  geom_col(aes(fill= Grupo),position = position_dodge(width = .95))+
   scale_fill_brewer(palette = 'Dark2') +
-  scale_y_continuous(labels = scales::percent, limits = c(0,.4)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0,.2)) +
   labs(
     x = 'Ano', y = '% da renda total familiar',
     fill = 'Categoria'
@@ -105,18 +106,26 @@ plot2 <-
   pivot_wider(
     names_from = Ano, values_from = c(renda_defla,renda))%>% 
   ungroup() %>% 
-  mutate(variacao = renda_defla_2017/renda_defla_2002)
+  mutate(variacao = renda_defla_2017/renda_defla_2002) %>% 
+  select(UF, quintil_renda,variacao) %>% 
+  mutate(quintil_renda = as.factor(quintil_renda)) %>% 
+
+plot2$UF <- factor(plot2$UF, levels = c(
+  "SC",'RJ','ES','PB','PA','PR','MS','MT','SP',
+  'RO','RN','MA','MG','PI','RS','AC','AL','GO',
+  'DF','AM','BA','RR','AP','TO','PE','SE','CE')
+  )
 
 plot2 %>% 
+  na.omit() %>% 
   ggplot() +
     geom_vline(aes(xintercept = 1), linetype = 'dashed') +
     geom_vline(aes(xintercept = 2), linetype = 'dashed') +
     geom_path(
-      aes(variacao, reorder(UF, interaction(variacao,quintil_renda)),group = UF),
+      aes(variacao, UF,group = UF),
       linetype = 'dotted') +
     geom_point(
-      aes(variacao, reorder(UF, interaction(variacao,quintil_renda)),
-        fill = as.factor(quintil_renda)), shape = 21, size = 4.5, alpha = 1) +
+      aes(variacao, UF, fill = as.factor(quintil_renda)), shape = 21, size = 4.5, alpha = 1) +
   scale_fill_brewer(palette =  'Spectral') +
   theme_minimal() +
   labs(
@@ -124,7 +133,7 @@ plot2 %>%
     x = 'Fator de multiplicação', fill = "Quintil de Renda", y=""
     #,subtitle = "Fator igual a 1 equivale dizer que a renda (ajustada pela inflação) permaneceu a mesma no período. \nFator de multiplicação 2 indica que a renda em 2017 é o dobro da de 2002."
   ) +
-  theme(panel.grid = element_blank(), legend.position = 'bottom')
+  theme(legend.position = 'bottom')
 
 
 # 3. Gasto com Transporte ------------------------------------------
